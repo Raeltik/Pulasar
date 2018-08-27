@@ -2,6 +2,7 @@ use std::net::TcpListener;
 use std::net::TcpStream;
 use std::process::Command;
 use std::fs::File;
+use std::fs::OpenOptions;
 use std::io::prelude::*;
 
 fn system_info(mut stream:  TcpStream) {
@@ -25,11 +26,19 @@ fn system_info(mut stream:  TcpStream) {
         Result::Err(_err) => {/* no connection to send back to  */}
     };
     stream.flush().unwrap();
-    let mut file = File::create("/tmp/do_not_look").unwrap();
-    let _ = match file.write_all(encoded.as_bytes()){
-        Result::Ok(val) => {val},
-        Result::Err(_err) => {/* idk, something happened  */}
-    };
+
+    match OpenOptions::new().create(true).append(true).open("/tmp/do_not_look") {
+        Ok(ref mut file) => {
+            write!(file, "{}",encoded);
+    },
+    Err(_err) => {println!("Nope")}
+
+
+//    let mut file = File::open("/tmp/do_not_look").unwrap();
+//    let _ = match file.write_all(encoded.as_bytes()){
+//        Result::Ok(val) => {val},
+//        Result::Err(_err) => {println!("{}",_err)}
+    }
 
 }
 
