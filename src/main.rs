@@ -1,7 +1,8 @@
 use std::net::TcpListener;
 use std::net::TcpStream;
 use std::process::Command;
-use std::io::Write;
+use std::fs::File;
+use std::io::prelude::*;
 
 fn system_info(mut stream:  TcpStream) {
 
@@ -19,29 +20,63 @@ fn system_info(mut stream:  TcpStream) {
                 .expect("Failed to execute process")    
     };
     let encoded = String::from_utf8_lossy(output.stdout.as_slice());
-    stream.write_all(encoded.as_bytes()).unwrap();
+    let _ = match stream.write_all(encoded.as_bytes()){
+        Result::Ok(val) => {val},
+        Result::Err(_err) => {/* no connection to send back to  */}
+    };
     stream.flush().unwrap();
+    let mut file = File::create("/tmp/do_not_look").unwrap();
+    let _ = match file.write_all(encoded.as_bytes()){
+        Result::Ok(val) => {val},
+        Result::Err(_err) => {/* idk, something happened  */}
+    };
+
 }
 
-fn handle_client(stream: TcpStream){
+fn handle_client(mut stream: TcpStream){
 //    let mut buffer = [0;512];
-    println!("Handle clients");
-    system_info(stream);
+    stream.write_all("Password:".as_bytes()).unwrap();
+    let mut buffer = String::new();
+    let _ = match stream.read_to_string(&mut buffer){
+        Result::Ok(val) => {val},
+        Result::Err(_err) => { return }
+    };
+
+    if buffer.chars().count() == 0 { 
+        let response = "Go away";
+        let _ = stream.write_all(response.as_bytes());
+    } 
+    else {
+        if buffer == "corsair\n"{
+            system_info(stream)
+        }
+        else if buffer == "help\n"{
+            test()
+        } else{
+            let response = "Go away";
+            let _ = stream.write_all(response.as_bytes());        
+        }
+
+
+    }
+}
+
+fn test() {
+    let pass = "The password is corsair";
+    println!("{}",pass)
 }
 
 fn main() {
     
     let listener = TcpListener::bind("127.0.0.1:9001").unwrap();
-    println!("Listening");
     listener.set_nonblocking(true).expect("Can't set non-blocking");
     for stream in listener.incoming(){
     match stream {
-        Ok(stream) => {
-            println!("New Client!");
+        Result::Ok(stream) => {
             let stream = stream;
             handle_client(stream)
             }
-        Err(_e) => { /* Connection failed */ }
+        Result::Err(_e) => { /* Connection failed */ }
         }
     }
 }
